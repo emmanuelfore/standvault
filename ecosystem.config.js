@@ -7,7 +7,7 @@ module.exports = {
       cwd: './', // Root directory
       env: {
         NODE_ENV: 'production',
-        PORT: 5000
+        PORT: 3004
       },
       instances: 1,
       autorestart: true,
