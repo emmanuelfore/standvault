@@ -1,84 +1,38 @@
 # Example Nginx configuration for the Housing project
 
-# Redirect HTTP to HTTPS (uncomment if you have SSL)
-# server {
-#     listen 80;
-#     server_name yourdomain.com admin.yourdomain.com portal.yourdomain.com;
-#     return 301 https://$host$request_uri;
-# }
-
 # ---------------------------------------------------------
-# Admin Frontend (admin.yourdomain.com)
+# Admin Frontend (http://212.90.121.97:5183)
 # ---------------------------------------------------------
 server {
-    listen 80; # Change to 443 ssl if using SSL
-    server_name admin.yourdomain.com;
+    listen 80;
+    server_name 212.90.121.97;
 
-    # SSL configuration (uncomment and modify paths if using SSL)
-    # ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
-    # ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
-
-    root /path/to/your/project/housing/admin/dist;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # Optional: Cache static assets
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-        expires 1y;
-        access_log off;
-        add_header Cache-Control "public";
-    }
-}
-
-# ---------------------------------------------------------
-# Portal Frontend (portal.yourdomain.com)
-# ---------------------------------------------------------
-server {
-    listen 80; # Change to 443 ssl if using SSL
-    server_name portal.yourdomain.com;
-
-    # SSL configuration (uncomment and modify paths if using SSL)
-    # ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
-    # ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
-
-    root /path/to/your/project/housing/portal/dist;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # Optional: Cache static assets
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-        expires 1y;
-        access_log off;
-        add_header Cache-Control "public";
-    }
-}
-
-# ---------------------------------------------------------
-# Backend API (api.yourdomain.com)
-# ---------------------------------------------------------
-server {
-    listen 80; # Change to 443 ssl if using SSL
-    server_name api.yourdomain.com;
-
-    # SSL configuration (uncomment and modify paths if using SSL)
-    # ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
-    # ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
-
-    location / {
-        proxy_pass http://localhost:5000; # Must match your API PORT
+    # If you want to use a subdomain pattern with Nginx proxying to Vite:
+    location /admin/ {
+        proxy_pass http://localhost:5183/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
         proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /portal/ {
+        proxy_pass http://localhost:5184/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    location /api/ {
+        proxy_pass http://localhost:3004/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
     }
 }
+
