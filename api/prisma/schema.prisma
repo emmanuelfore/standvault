@@ -1,0 +1,352 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  SYSTEM_ADMIN
+  PROJECT_ADMIN
+  BUYER
+}
+
+model users {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password_hash String?
+  role          UserRole
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  admin_assignments project_admin_assignments[]
+  buyer_profile     buyers?
+  ledger_actions    ledger_entries[]
+  audit_actions     audit_log[]
+  tokens            tokens[]
+}
+
+model projects {
+  id          String   @id @default(uuid())
+  name        String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  configs     project_configs[]
+  admins      project_admin_assignments[]
+  stands      stands[]
+  reconciliation_periods reconciliation_periods[]
+  additional_charge_batches additional_charge_batches[]
+}
+
+model project_configs {
+  id              String   @id @default(uuid())
+  project_id      String
+  version         Int
+  currency        String
+  deposit_pct     Decimal
+  instalments_max Int
+  interest_rate   Decimal
+  penalty_rate    Decimal
+  created_at      DateTime @default(now())
+
+  project         projects @relation(fields: [project_id], references: [id])
+  buyers          buyers[]
+}
+
+model project_admin_assignments {
+  id          String   @id @default(uuid())
+  project_id  String
+  user_id     String
+  created_at  DateTime @default(now())
+
+  project     projects @relation(fields: [project_id], references: [id])
+  user        users    @relation(fields: [user_id], references: [id])
+
+  @@unique([project_id, user_id])
+}
+
+enum StandStatus {
+  AVAILABLE
+  ALLOCATED
+  SOLD
+  RESERVED
+}
+
+model stands {
+  id               String      @id @default(uuid())
+  project_id       String
+  stand_number     String
+  size_sqm         Decimal
+  price_per_sqm    Decimal
+  status           StandStatus @default(AVAILABLE)
+  created_at       DateTime    @default(now())
+  updated_at       DateTime    @updatedAt
+
+  project          projects    @relation(fields: [project_id], references: [id])
+  buyers           buyers[]
+}
+
+enum PaymentStatus {
+  CURRENT
+  IN_ARREARS
+  FULLY_PAID
+}
+
+model buyers {
+  id                 String   @id @default(uuid())
+  user_id            String   @unique
+  stand_id           String
+  project_config_id  String
+  first_name         String
+  last_name          String
+  id_number          String?
+  phone_number       String?
+  payment_status     PaymentStatus @default(CURRENT)
+  arrears_status     Boolean       @default(false)
+  allocation_date    DateTime?
+  
+  // Migration & Payment Plan Data
+  total_contract_price Decimal?
+  payment_plan_months  Int?
+  monthly_instalment   Decimal?
+  deposit_amount       Decimal?
+  legacy_customer_code String?
+
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  user               users    @relation(fields: [user_id], references: [id])
+  stand              stands   @relation(fields: [stand_id], references: [id])
+  config             project_configs @relation(fields: [project_config_id], references: [id])
+
+  schedules          instalment_schedules[]
+  ledger_entries     ledger_entries[]
+  pop_submissions    pop_submissions[]
+  documents          documents[]
+  milestones         milestones[]
+  notifications      notifications[]
+}
+
+enum ScheduleStatus {
+  ACTIVE
+  SUPERSEDED
+  PENDING_APPROVAL
+}
+
+model instalment_schedules {
+  id                String   @id @default(uuid())
+  buyer_id          String
+  version           Int
+  status            ScheduleStatus @default(ACTIVE)
+  created_at        DateTime @default(now())
+
+  buyer             buyers   @relation(fields: [buyer_id], references: [id])
+  periods           instalment_periods[]
+}
+
+enum PeriodStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
+model instalment_periods {
+  id                    String   @id @default(uuid())
+  schedule_id           String
+  period_number         Int
+  due_date              DateTime
+  principal_expected    Decimal
+  interest_expected     Decimal
+  total_expected        Decimal
+  paid_amount           Decimal      @default(0)
+  status                PeriodStatus @default(UNPAID)
+
+  schedule              instalment_schedules @relation(fields: [schedule_id], references: [id])
+}
+
+enum EntryType {
+  PAYMENT
+  FEE
+  REVERSAL
+  PENALTY
+}
+
+model ledger_entries {
+  id               String   @id @default(uuid())
+  buyer_id         String
+  amount           Decimal
+  entry_type       EntryType
+  description      String
+  created_by       String?
+  effective_date   DateTime
+  is_verified      Boolean  @default(false)
+  reverses_id      String?
+  allocation_type  String?  @default("STAND")
+  allocation_target_id String?
+  is_migrated      Boolean  @default(false)
+  created_at       DateTime @default(now())
+
+  buyer            buyers   @relation(fields: [buyer_id], references: [id])
+  creator          users?   @relation(fields: [created_by], references: [id])
+  pop_submissions  pop_submissions[]
+}
+
+enum PopStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model pop_submissions {
+  id               String    @id @default(uuid())
+  buyer_id         String
+  file_url         String
+  amount           Decimal
+  payment_date     DateTime
+  status           PopStatus @default(PENDING)
+  rejection_reason String?
+  ledger_entry_id  String?
+  
+  // Extra fields used by the mobile app
+  reference_number String?
+  notes            String?
+  allocation_type  String?     @default("STAND")
+  allocation_target_id String? 
+
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  buyer            buyers    @relation(fields: [buyer_id], references: [id])
+  ledger_entry     ledger_entries? @relation(fields: [ledger_entry_id], references: [id])
+}
+
+model additional_charge_batches {
+  id               String   @id @default(uuid())
+  project_id       String
+  amount           Decimal
+  description      String
+  created_by       String
+  created_at       DateTime @default(now())
+
+  project          projects @relation(fields: [project_id], references: [id])
+}
+
+enum PenaltyStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  WAIVED
+}
+
+model penalty_calculations {
+  id               String        @id @default(uuid())
+  buyer_id         String
+  calculated_amount Decimal
+  period_overdue   Int
+  status           PenaltyStatus @default(PENDING_REVIEW)
+  reason           String?
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @updatedAt
+}
+
+model reconciliation_periods {
+  id               String   @id @default(uuid())
+  project_id       String
+  start_date       DateTime
+  end_date         DateTime
+  is_closed        Boolean  @default(false)
+  closed_at        DateTime?
+  closed_by        String?
+  created_at       DateTime @default(now())
+
+  project          projects @relation(fields: [project_id], references: [id])
+}
+
+model documents {
+  id               String   @id @default(uuid())
+  buyer_id         String
+  title            String
+  document_type    String
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  buyer            buyers   @relation(fields: [buyer_id], references: [id])
+  versions         document_versions[]
+}
+
+model document_versions {
+  id               String   @id @default(uuid())
+  document_id      String
+  version_number   Int
+  file_url         String
+  uploaded_by      String
+  created_at       DateTime @default(now())
+
+  document         documents @relation(fields: [document_id], references: [id])
+}
+
+model audit_log {
+  id               String   @id @default(uuid())
+  user_id          String?
+  action           String
+  entity_type      String
+  entity_id        String
+  details          Json
+  ip_address       String?
+  created_at       DateTime @default(now())
+
+  user             users?   @relation(fields: [user_id], references: [id])
+}
+
+model milestones {
+  id               String   @id @default(uuid())
+  buyer_id         String
+  milestone_type   String   
+  achieved_at      DateTime @default(now())
+
+  buyer            buyers   @relation(fields: [buyer_id], references: [id])
+}
+
+model notifications {
+  id               String   @id @default(uuid())
+  buyer_id         String?
+  user_id          String?
+  title            String
+  message          String
+  type             String
+  is_read          Boolean  @default(false)
+  email_sent       Boolean  @default(false)
+  created_at       DateTime @default(now())
+
+  buyer            buyers?  @relation(fields: [buyer_id], references: [id])
+}
+
+model migration_imports {
+  id               String   @id @default(uuid())
+  file_name        String
+  status           String
+  total_rows       Int
+  successful_rows  Int
+  error_report_url String?
+  committed_by     String
+  created_at       DateTime @default(now())
+}
+
+enum TokenType {
+  PASSWORD_RESET
+  INVITATION
+}
+
+model tokens {
+  id         String   @id @default(uuid())
+  user_id    String
+  token_hash String
+  type       TokenType
+  expires_at DateTime
+  used_at    DateTime?
+  created_at DateTime @default(now())
+
+  user       users    @relation(fields: [user_id], references: [id])
+}

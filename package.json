@@ -1,0 +1,26 @@
+{
+  "name": "housing",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev:api": "npm run dev -w api",
+    "dev:admin": "npm run dev -w admin",
+    "dev:portal": "npm run dev -w portal",
+    "dev:mobile": "cd mobile && npx cross-env EXPO_QR_CODE_SMALL=true REACT_NATIVE_PACKAGER_HOSTNAME=192.168.0.100 npm start",
+    "build:all": "npm run build -w api && npm run build -w admin && npm run build -w portal"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "workspaces": [
+    "api",
+    "admin",
+    "portal"
+  ],
+  "overrides": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  }
+}
