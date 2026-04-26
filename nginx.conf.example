@@ -1,31 +1,28 @@
 # Example Nginx configuration for the Housing project
 
 # ---------------------------------------------------------
-# Admin Frontend (http://212.90.121.97:5183)
+# Admin Frontend (admin.212.90.121.97)
 # ---------------------------------------------------------
 server {
     listen 80;
-    server_name 212.90.121.97;
+    server_name 212.90.121.97; # Or admin.yourdomain.com
 
-    # If you want to use a subdomain pattern with Nginx proxying to Vite:
     location /admin/ {
-        proxy_pass http://localhost:5183/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
+        alias /path/to/standvault/admin/dist/;
+        try_files $uri $uri/ /admin/index.html;
     }
 
+    # ---------------------------------------------------------
+    # Portal Frontend (portal.212.90.121.97)
+    # ---------------------------------------------------------
     location /portal/ {
-        proxy_pass http://localhost:5184/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
+        alias /path/to/standvault/portal/dist/;
+        try_files $uri $uri/ /portal/index.html;
     }
 
+    # ---------------------------------------------------------
+    # Backend API (api.212.90.121.97)
+    # ---------------------------------------------------------
     location /api/ {
         proxy_pass http://localhost:3004/;
         proxy_http_version 1.1;
@@ -33,6 +30,9 @@ server {
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
         proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 
